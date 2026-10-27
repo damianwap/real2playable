@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f5fa" />
+    <meta
+      name="description"
+      content="An independent Phaser playground. Verify and play a Real2Playable export ZIP, entirely in your browser."
+    />
+    <title>Package playground · Real2Playable</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#playground">Skip to playground</a>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand" href="/" aria-label="Real2Playable workspace"
+          ><span class="brand-mark" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i></span
+          >Real2Playable</a
+        >
+        <span class="header-divider" aria-hidden="true"></span
+        ><span class="header-location">Package playground</span>
+        <a class="workspace-link" href="/"
+          >Back to workspace <span aria-hidden="true">↗</span></a
+        >
+      </header>
+      <main id="playground">
+        <div class="page-heading">
+          <div>
+            <h1>Out of the ZIP.<br />Into the scene.</h1>
+            <p>
+              A separate engine. The actual exported files.<br
+                class="desktop-break"
+              />
+              A small, honest test of what travels with your asset.
+            </p>
+          </div>
+          <span class="engine-tag"
+            ><span aria-hidden="true"></span>Powered by Phaser 3</span
+          >
+        </div>
+        <div class="playground-layout">
+          <section class="scene-panel" aria-labelledby="scene-heading">
+            <div class="panel-heading">
+              <h2 id="scene-heading">Live scene</h2>
+              <span id="scene-status" class="quiet">Waiting for a package</span>
+            </div>
+            <div
+              id="stage"
+              class="stage"
+              tabindex="0"
+              role="region"
+              aria-label="Phaser scene. Space pauses or plays, R restarts, G toggles grid, A toggles anchor."
+            >
+              <div id="game"></div>
+              <div id="scene-empty" class="scene-empty">
+                <div class="empty-cross" aria-hidden="true"><span></span></div>
+                <strong>Your asset belongs here.</strong>
+                <p>Open an export ZIP to see it in a real game engine.</p>
+              </div>
+              <span class="scene-coordinate" aria-hidden="true"
+                >+X right &nbsp; +Y down</span
+              >
+              <span id="scene-scale" class="scene-scale" hidden></span>
+            </div>
+            <div class="playback-controls">
+              <div class="transport">
+                <button id="play" class="primary-button" disabled>Play</button
+                ><button
+                  id="restart"
+                  class="icon-button"
+                  disabled
+                  aria-label="Restart timeline"
+                  title="Restart (R)"
+                >
+                  ↺
+                </button>
+              </div>
+              <div class="motion-field">
+                <label for="motion">Motion state</label
+                ><select id="motion" disabled>
+                  <option value="">Static sprite</option>
+                </select>
+              </div>
+              <span class="procedural-label"
+                >Procedural motion<br /><span
+                  >Transforms, not new poses</span
+                ></span
+              >
+            </div>
+            <div class="timeline">
+              <label class="sr-only" for="scrub">Timeline position</label
+              ><input
+                id="scrub"
+                type="range"
+                min="0"
+                max="1000"
+                value="0"
+                disabled
+              /><output id="time" for="scrub">0 / 0 ms</output>
+            </div>
+            <div class="scene-options">
+              <label
+                ><input id="anchor" type="checkbox" checked />Show origin</label
+              ><label
+                ><input id="grid" type="checkbox" checked />Scene grid</label
+              ><span>Focus scene for keyboard controls</span>
+            </div>
+          </section>
+          <aside
+            class="verification-column"
+            aria-label="Package import and verification"
+          >
+            <section class="import-panel" aria-labelledby="import-heading">
+              <div class="panel-heading">
+                <h2 id="import-heading">Open a package</h2>
+                <span class="local-badge">Local-first</span>
+              </div>
+              <label id="drop-zone" class="drop-zone" for="zip-file"
+                ><svg
+                  width="30"
+                  height="30"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 16V3m-5 5 5-5 5 5M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"
+                  /></svg
+                ><strong>Drop your export ZIP</strong
+                ><span>or <span class="browse-label">browse files</span></span
+                ><small>Up to 20 MB · stays in this browser</small
+                ><input id="zip-file" type="file" accept=".zip,application/zip"
+              /></label>
+              <p class="privacy-note">
+                No upload. No generator connection required. Imported code is
+                never executed.
+              </p>
+            </section>
+            <section
+              class="verification-panel"
+              aria-labelledby="verification-heading"
+            >
+              <div class="panel-heading">
+                <h2 id="verification-heading">Package verification</h2>
+                <span id="verification-count" class="quiet">0 / 4</span>
+              </div>
+              <ol id="checks" class="checks">
+                <li data-check="zip">
+                  <span class="check-mark" aria-hidden="true">·</span
+                  ><span
+                    >Safe ZIP contents<small
+                      >Paths, sizes & allowed files</small
+                    ></span
+                  >
+                </li>
+                <li data-check="hash">
+                  <span class="check-mark" aria-hidden="true">·</span
+                  ><span
+                    >SHA-256 integrity<small
+                      >Every file checked against manifest</small
+                    ></span
+                  >
+                </li>
+                <li data-check="schema">
+                  <span class="check-mark" aria-hidden="true">·</span
+                  ><span
+                    >Portable asset contract<small
+                      >Bounds, timelines & references</small
+                    ></span
+                  >
+                </li>
+                <li data-check="engine">
+                  <span class="check-mark" aria-hidden="true">·</span
+                  ><span
+                    >Phaser image decoded<small
+                      >Loaded from the extracted sprite</small
+                    ></span
+                  >
+                </li>
+              </ol>
+              <div id="report" class="report" role="status" aria-live="polite">
+                Ready when you are. Open a ZIP to verify its contents.
+              </div>
+              <div id="error" class="error-report" role="alert" hidden></div>
+            </section>
+          </aside>
+          <section
+            id="inventory-panel"
+            class="inventory-panel"
+            aria-labelledby="inventory-heading"
+          >
+            <div class="panel-heading">
+              <div>
+                <h2 id="inventory-heading">Inside the package</h2>
+                <p id="package-summary">
+                  Only the exported files. Nothing from the generator’s private
+                  storage.
+                </p>
+              </div>
+              <span id="file-count" class="quiet">No package loaded</span>
+            </div>
+            <div id="asset-details" class="asset-details" hidden></div>
+            <div id="inventory" class="inventory-empty">
+              Your verified file inventory will appear here.
+            </div>
+            <div id="package-warnings" class="package-warnings" hidden></div>
+          </section>
+        </div>
+        <footer class="page-footer">
+          <span>Portable files, independently verified.</span
+          ><span
+            >PNG + JSON <span aria-hidden="true">/</span> No gameplay
+            assumptions</span
+          >
+        </footer>
+      </main>
+    </div>
+    <script type="module" src="/playground/main.ts"></script>
+  </body>
+</html>

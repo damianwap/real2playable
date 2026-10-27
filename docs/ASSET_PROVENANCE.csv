@@ -1,0 +1,5 @@
+asset,source,creator,license,ai_model_used,notes
+Petal the Cactus,apps/api/fixtures.py,AI-assisted Real2Playable implementation,MIT,none,"Original Pillow drawing; source preview is illustration, not photo"
+Mallow Mushroom,apps/api/fixtures.py,AI-assisted Real2Playable implementation,MIT,none,"Original Pillow drawing; fixture mode disclosed"
+Sunday Mug,apps/api/fixtures.py,AI-assisted Real2Playable implementation,MIT,none,"Original Pillow drawing; fixture mode disclosed"
+User uploads,private .data directory,user,user-controlled,depends on selected mode,"Never included in export; live processing requires provider consent; no universal commercial rights claim"
