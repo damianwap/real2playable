@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import meta
 from .compiler import MAX_BYTES, decode_image, image_bytes, normalize, package, timelines, verify_package
 from .fixtures import SAMPLES, illustration, source_illustration
-from .models import APIError, AssetPatch, GenerateRequest, SelectionRequest, VERSION
+from .models import APIError, AssetPatch, GenerateRequest, SelectionRequest, SuggestRequest, VERSION
 from .store import Store, identifier, new_id
 
 load_dotenv()
@@ -171,28 +171,65 @@ def create_app(data_dir=None):
             raise APIError("INVALID_BOX","Selection must lie entirely inside the original image.",422)
         return (x,y,right,bottom)
 
+    @app.post("/api/v1/uploads/{upload_id}/suggest")
+    async def suggest(upload_id:str,body:SuggestRequest | None=None):
+        identifier(upload_id,"upl"); store().get(upload_id,"upload")
+        meta.require_key()
+        with Image.open(store().directory(upload_id)/"source.png") as opened: image=opened.convert("RGBA")
+        if body is not None and body.box is not None:
+            image=image.crop(pixel_box(body.box,image))
+        if upload_id in active_uploads or app.state.model_slots.locked():
+            raise APIError("MODEL_BUSY","All local model slots are busy. Retry after an existing request finishes.",429)
+        active_uploads.add(upload_id)
+        try:
+            async with app.state.model_slots:
+                label,vision_stage=await meta.suggest_label(image)
+        finally:
+            active_uploads.discard(upload_id)
+        return {"label":label,"stages":[vision_stage]}
+
     @app.post("/api/v1/uploads/{upload_id}/selection")
     async def select(upload_id:str,body:SelectionRequest):
         identifier(upload_id,"upl"); store().get(upload_id,"upload")
         with Image.open(store().directory(upload_id)/"source.png") as opened: image=opened.convert("RGBA")
-        stages=[];warnings=[]
+        stages=[];warnings=[];suggested=None
+        if body.method in ("manual_box","sam") and not body.label:
+            raise APIError("LABEL_REQUIRED","Name the object before requesting selection. Auto-detect can suggest a name.",422)
         if body.method=="manual_box":
+            label=body.label
             bounds=pixel_box(body.box,image)
             cutout=image.crop(bounds)
             mode="fallback"
             warnings=["Manual rectangular crop: background within the box is retained. This is not SAM segmentation or AI stylization."]
             stages=[{"name":"manual_box_crop","provider":"Real2Playable","model":None,"mode":"fallback","success":True}]
-        else:
+        elif body.method=="sam_auto":
             meta.require_key()
-            if not body.consent:
-                raise APIError("CONSENT_REQUIRED", "Allow sending this image to Meta before requesting segmentation.", 422)
+            if upload_id in active_uploads or app.state.model_slots.locked():
+                raise APIError("MODEL_BUSY","All local model slots are busy. Retry after an existing request finishes.",429)
+            active_uploads.add(upload_id)
+            try:
+                async with app.state.model_slots:
+                    if body.label:
+                        label=body.label
+                    else:
+                        suggested,vision_stage=await meta.suggest_label(image)
+                        stages.append(vision_stage)
+                        label=suggested
+                    cutout,sam_stage=await meta.segment(image,label,None)
+            finally:
+                active_uploads.discard(upload_id)
+            stages.append(sam_stage);mode="live"
+            warnings=["Review the SAM mask before generating; the model can omit details."]
+        else:
+            label=body.label
+            meta.require_key()
             bounds=pixel_box(body.box,image) if body.box else None
             if upload_id in active_uploads or app.state.model_slots.locked():
                 raise APIError("MODEL_BUSY","All local model slots are busy. Retry after an existing request finishes.",429)
             active_uploads.add(upload_id)
             try:
                 async with app.state.model_slots:
-                    cutout,sam_stage=await meta.segment(image,body.label,bounds)
+                    cutout,sam_stage=await meta.segment(image,label,bounds)
             finally:
                 active_uploads.discard(upload_id)
             stages=[sam_stage];mode="live"
@@ -201,8 +238,8 @@ def create_app(data_dir=None):
         cutout.save(directory/"selection.png")
         # A white-on-transparent mask preview, NOT a fabricated isolated object.
         mask=Image.new("RGBA",cutout.size,"white");mask.putalpha(cutout.getchannel("A"));mask.save(directory/"mask.png")
-        result={"selection_id":id_,"mask_url":file_url(id_,"mask.png"),"preview_url":file_url(id_,"selection.png"),"method":body.method,"mode":mode,"warnings":warnings,"stages":stages}
-        store().put(id_,"selection",{"response":result,"upload_id":upload_id,"label":body.label},upload_id)
+        result={"selection_id":id_,"mask_url":file_url(id_,"mask.png"),"preview_url":file_url(id_,"selection.png"),"method":body.method,"mode":mode,"warnings":warnings,"stages":stages,"suggested_label":suggested}
+        store().put(id_,"selection",{"response":result,"upload_id":upload_id,"label":label},upload_id)
         return result
 
     async def run_job(job_id,body):

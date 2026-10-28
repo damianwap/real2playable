@@ -54,14 +54,15 @@ Adapter mengikuti [Responses API Meta](https://dev.meta.ai/docs/overview):
 
 **Verifikasi live:** SAM 3.1 (label dan box), Muse Image, SAM alpha re-mask, serta Muse Spark telah berhasil dijalankan pada ilustrasi kontrol. Perbaikan alpha juga diverifikasi pada artwork dari input aktual yang sebelumnya gagal, termasuk pemeriksaan visual, ZIP dan playback Phaser. Artifact yang diproses ulang memakai hasil Muse/SAM tersimpan dan provenance cached yang eksplisit. Ini belum membuktikan kualitas pada tiga foto baru sebagaimana exit gate PRD; lihat [EVALUATION](docs/EVALUATION.md).
 
-Status “configured” hanya berarti key tersedia, bukan jaminan akses setiap model. Hanya stage yang benar-benar berhasil dipanggil mendapat provenance live. Tidak ada pengganti otomatis. Pengguna harus menyetujui pengiriman gambar ke Meta; menerima crop manual tidak mengizinkan panggilan Meta.
+Status “configured” hanya berarti key tersedia, bukan jaminan akses setiap model. Hanya stage yang benar-benar berhasil dipanggil mendapat provenance live. Tidak ada pengganti otomatis. Menggunakan fitur AI (Suggest, SAM, Auto-detect, Generate artwork) otomatis mengirim gambar ke Meta tanpa checkbox persetujuan; crop manual tidak memanggil Meta sama sekali.
 
 ### Pilih objek dan jalankan artwork
 
 - **SAM 3.1 by label:** gunakan satu nama objek singkat, misalnya `mug` atau `potted cactus`. Mode ini tidak mengirim box.
 - **SAM 3.1 by box:** atur box yang terlihat agar mengelilingi satu objek. SAM memakai box; nama objek tetap menjadi label aset.
+- **Auto-detect:** tanpa mengetik — vision menamai objek utama, lalu SAM mensegmentasinya. Tombol **Suggest** mengisi nama untuk mode lain (membaca area dalam box bila metode memakai box). Keduanya membutuhkan API key; keberhasilan live belum diverifikasi.
 - **Manual box / crop:** hanya memotong piksel asli, bukan segmentasi SAM.
-- Centang **Allow this image to be sent to Meta**, review seleksi, lalu klik **Generate artwork**. Jika izin belum diberikan, tombol menjelaskan syarat tersebut dan tidak mengirim request generasi.
+- Review seleksi, lalu klik **Generate artwork**. Fitur AI langsung mengirim gambar ke Meta; tidak ada checkbox persetujuan.
 - Jika `.env` baru diubah, restart backend lalu refresh halaman. Key hanya dimuat saat startup.
 - Respons SAM kosong tetap dilaporkan sebagai no-match. Respons non-kosong yang tidak berisi mask valid dilaporkan sebagai error format, bukan klaim bahwa objek tidak ada.
 - `OUTPUT_ALPHA_NO_MASK` / `OUTPUT_ALPHA_INVALID` berarti pembersihan artwork setelah Muse gagal, **bukan** label foto asal tidak ditemukan. Alpha cleanup mengasumsikan satu subjek yang terhubung dan berada di tengah; periksa detail terpisah dan tepian di inspector.
@@ -110,7 +111,7 @@ Batas lokal: 2 slot pemrosesan model, 8 queued jobs, 30 mutasi/menit per IP; kon
 - `src/`: studio React / TypeScript, inspector dan alur upload.
 - `apps/api/`: FastAPI, adapter Meta, fixture asli, SQLite, schema dan compiler.
 - `playground/`: consumer Phaser independen dan validator ZIP sisi browser.
-- `tests/`: kontrak ekspor, input invalid, consent, integritas dan deletion.
+- `tests/`: kontrak ekspor, input invalid, integritas dan deletion.
 - `docs/`: arsitektur, kontribusi, build log, provenance, notices dan evaluasi.
 
 ## Submission hackathon

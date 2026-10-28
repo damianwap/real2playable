@@ -10,7 +10,8 @@ Consumer (`playground/`) adalah entry Vite terpisah. Ia hanya memuat ZIP lewat i
 
 - Fixture: original Pillow artwork → normalizer → inspector.
 - Manual: foto → validasi / EXIF strip → box crop → review → normalizer. Latar dalam box tetap ada; provenance `fallback`.
-- Live: foto → consent → SAM selection → review → Muse Image → SAM alpha re-mask → Muse Spark descriptive metadata → normalizer. Key yang tidak ada menghentikan panggilan live; tidak otomatis mengganti hasil.
+- Live: foto → SAM selection → review → Muse Image → SAM alpha re-mask → Muse Spark descriptive metadata → normalizer. Key yang tidak ada menghentikan panggilan live; tidak otomatis mengganti hasil.
+- Auto: foto → saran label vision → SAM by label → review. Label terisi otomatis dan dapat diubah sebelum generate; keberhasilan live belum diverifikasi.
 
 Re-mask output tidak memakai ulang label foto. Muse diminta menggambar subjek di tengah pada latar netral; SAM diminta menyegmentasi latar melalui titik positif di sudut dan titik negatif di tengah. Compiler mengambil komplemen mask SAM, mempertahankan alpha asli, lalu menyisakan komponen terhubung di pusat untuk membuang fragmen tepi yang terlepas. Mask yang menghapus pusat atau masih menghubungkan subjek ke sudut kanvas ditolak. Ini bukan mask rectangle palsu atau pengganti inference: mask berasal dari SAM, cleanup berasal dari compiler. Detail yang terlepas dari subjek tetap perlu diperiksa manusia.
 

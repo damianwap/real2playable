@@ -15,6 +15,8 @@ class StrictModel(BaseModel):
     @field_validator("label", check_fields=False)
     @classmethod
     def valid_label(cls, value):
+        if value is None:
+            return value
         if not value.strip() or any(ord(c) < 32 for c in value):
             raise ValueError("Label must be nonblank and contain no control characters")
         return value
@@ -32,10 +34,13 @@ class Box(StrictModel):
 
 
 class SelectionRequest(StrictModel):
-    method: Literal["manual_box", "sam"]
-    label: Text
+    method: Literal["manual_box", "sam", "sam_auto"]
+    label: Text | None = None
     box: Box | None = None
-    consent: bool = False
+
+
+class SuggestRequest(StrictModel):
+    box: Box | None = None
 
 
 class GenerateRequest(StrictModel):

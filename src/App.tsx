@@ -77,6 +77,9 @@ export default function App() {
   const [modal, setModal] = useState<
     "upload" | "guide" | "export" | "pipeline" | "delete" | null
   >(null);
+  const [pendingDelete, setPendingDelete] = useState<AssetResponse | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -243,22 +246,26 @@ export default function App() {
       setBusy(false);
     }
   }
-  async function deleteAsset() {
-    if (!data) return;
+  async function deleteAsset(target: AssetResponse | null) {
+    if (!target) return;
     setBusy(true);
+    setError("");
     try {
-      await api<void>(`/assets/${data.asset_id}`, { method: "DELETE" });
+      await api<void>(`/assets/${target.asset_id}`, { method: "DELETE" });
       const remaining = assets.filter(
-        (item) => item.asset_id !== data.asset_id,
+        (item) => item.asset_id !== target.asset_id,
       );
       setAssets(remaining);
       localStorage.setItem(
         "r2p-assets",
         JSON.stringify(remaining.map((item) => item.asset_id)),
       );
-      localStorage.removeItem("r2p-active");
-      setData(remaining[0] ?? null);
-      setCompiled(null);
+      if (data?.asset_id === target.asset_id) {
+        localStorage.removeItem("r2p-active");
+        setData(remaining[0] ?? null);
+        setCompiled(null);
+      }
+      setPendingDelete(null);
       setModal(null);
       setView("library");
       setNotice("Asset and related source files deleted.");
@@ -491,30 +498,46 @@ export default function App() {
               </div>
               <div className="asset-grid">
                 {filtered.map((item) => (
-                  <button
-                    key={item.asset_id}
-                    className="library-card"
-                    onClick={() => receiveAsset(item)}
-                  >
-                    <div className="library-preview checkerboard">
-                      <img
-                        src={item.preview_url}
-                        alt={item.asset.name}
-                        width="512"
-                        height="512"
-                        loading="lazy"
-                      />
-                      <span className="tiny-chip">{modeNames[item.mode]}</span>
-                    </div>
-                    <div>
-                      <h3>{item.asset.name}</h3>
-                      <span>
-                        {item.asset.asset_type}{" "}
-                        <span className="dot-separator">·</span> 512 × 512
-                      </span>
-                      <ChevronRight size={17} />
-                    </div>
-                  </button>
+                  <div key={item.asset_id} className="library-card">
+                    <button
+                      className="library-open"
+                      onClick={() => receiveAsset(item)}
+                      aria-label={`Open ${item.asset.name} in studio`}
+                    >
+                      <div className="library-preview checkerboard">
+                        <img
+                          src={item.preview_url}
+                          alt={item.asset.name}
+                          width="512"
+                          height="512"
+                          loading="lazy"
+                        />
+                        <span className="tiny-chip">
+                          {modeNames[item.mode]}
+                        </span>
+                      </div>
+                      <div className="library-meta">
+                        <h3>{item.asset.name}</h3>
+                        <span>
+                          {item.asset.asset_type}{" "}
+                          <span className="dot-separator">·</span> 512 × 512
+                        </span>
+                        <ChevronRight size={17} />
+                      </div>
+                    </button>
+                    <button
+                      className="library-delete"
+                      aria-label={`Delete ${item.asset.name} from library`}
+                      title="Delete from library"
+                      disabled={busy}
+                      onClick={() => {
+                        setPendingDelete(item);
+                        setModal("delete");
+                      }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 ))}
               </div>
               {!filtered.length && (
@@ -715,6 +738,7 @@ export default function App() {
                     if (!data.motions.includes(id)) setMotion(id);
                     void updateAsset({ motions: next });
                   }}
+                  onOriginChange={(next) => void updateAsset({ origin: next })}
                 />
                 <aside className="inspector-panel">
                   <div className="section-heading">
@@ -847,7 +871,8 @@ export default function App() {
                     ))}
                   </div>
                   <p className="field-hint">
-                    Your anchor, wherever your game needs it.
+                    Your anchor, wherever your game needs it. Show origin on
+                    the canvas, then drag the marker — arrow keys work too.
                   </p>
                   <div className="panel-divider" />
                   <div className="section-heading">
@@ -1073,7 +1098,10 @@ export default function App() {
             {data && (
               <button
                 className="danger-text"
-                onClick={() => setModal("delete")}
+                onClick={() => {
+                  setPendingDelete(data);
+                  setModal("delete");
+                }}
               >
                 <Trash2 size={15} />
                 Delete this asset & its source
@@ -1085,27 +1113,33 @@ export default function App() {
       {modal === "delete" && (
         <Modal
           title="Delete this asset?"
-          onClose={() => setModal(null)}
+          onClose={() => {
+            setPendingDelete(null);
+            setModal(null);
+          }}
           busy={busy}
         >
           <div className="modal-body">
             <p className="modal-intro">
-              “{data?.asset.name}” and its related source files will be removed
-              from this local workspace. Exported copies on your device are not
-              affected.
+              “{(pendingDelete ?? data)?.asset.name}” and its related source
+              files will be removed from this local workspace. Exported copies
+              on your device are not affected.
             </p>
             <div className="dialog-actions">
               <button
                 className="secondary-button"
                 disabled={busy}
-                onClick={() => setModal(null)}
+                onClick={() => {
+                  setPendingDelete(null);
+                  setModal(null);
+                }}
               >
                 Keep asset
               </button>
               <button
                 className="danger-button"
                 disabled={busy}
-                onClick={() => void deleteAsset()}
+                onClick={() => void deleteAsset(pendingDelete ?? data)}
               >
                 {busy ? (
                   <LoaderCircle size={16} className="spin" />

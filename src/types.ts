@@ -69,6 +69,7 @@ export type Selection = {
   mode: Mode;
   warnings: string[];
   stages: Stage[];
+  suggested_label: string | null;
 };
 export type Compile = {
   export_id: string;

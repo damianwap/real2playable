@@ -120,12 +120,11 @@ def test_zip_validation_rejects_corruption_and_traversal(client):
         assert reply.status_code==422 and reply.json()["detail"]["code"]=="INVALID_PACKAGE"
 
 
-def test_sam_requires_explicit_provider_consent(client, monkeypatch):
-    monkeypatch.setenv("MODEL_API_KEY", "consent-check-only")
+def test_selection_rejects_unknown_consent_field(client):
     uploaded = client.post("/api/v1/uploads", files={"file": ("photo.png", png(), "image/png")}).json()
     response = client.post(
         f"/api/v1/uploads/{uploaded['upload_id']}/selection",
-        json={"method": "sam", "label": "object", "consent": False},
+        json={"method": "sam", "label": "object", "consent": True},
     )
     assert response.status_code == 422
-    assert response.json()["detail"]["code"] == "CONSENT_REQUIRED"
+    assert response.json()["detail"]["code"] == "INVALID_REQUEST"

@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import {
   Crosshair,
   Grid2X2,
@@ -10,7 +16,7 @@ import {
   Scan,
   SplitSquareHorizontal,
 } from "lucide-react";
-import type { AssetResponse, Motion, Timeline } from "./types";
+import type { AssetResponse, Motion, Timeline, Vec } from "./types";
 
 export const motionInfo: Record<Motion, { name: string; description: string }> =
   {
@@ -24,6 +30,9 @@ export const motionInfo: Record<Motion, { name: string; description: string }> =
       description: "A quick flash of feedback.",
     },
   };
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 function sampleMotion(timeline: Timeline, time: number) {
   const frames = timeline.keyframes;
@@ -60,6 +69,7 @@ export default function AssetCanvas({
   enabled,
   toggleMotion,
   disabled,
+  onOriginChange,
 }: {
   data: AssetResponse;
   motion: Motion;
@@ -67,6 +77,7 @@ export default function AssetCanvas({
   enabled: Motion[];
   toggleMotion: (v: Motion) => void;
   disabled: boolean;
+  onOriginChange: (origin: Vec) => void;
 }) {
   const [compare, setCompare] = useState(false);
   const [grid, setGrid] = useState(true);
@@ -80,6 +91,86 @@ export default function AssetCanvas({
   const progress = useRef<HTMLDivElement>(null);
   const timeline = data.animations.states[motion];
   const { origin, visual_bounds: bbox } = data.asset.sprite;
+  const [dragOrigin, setDragOrigin] = useState<Vec | null>(null);
+  const spriteSpace = useRef<HTMLDivElement>(null);
+  const originDrag = useRef<{
+    pointerId: number;
+    assetId: string;
+    dx: number;
+    dy: number;
+  } | null>(null);
+  const draftOrigin = useRef<Vec | null>(null);
+  const liveOrigin = dragOrigin ?? origin;
+  const originInteractive = anchor && !disabled;
+  function originPoint(clientX: number, clientY: number): Vec | null {
+    const rect = spriteSpace.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return null;
+    return {
+      x: round3(clamp01((clientX - rect.left) / rect.width)),
+      y: round3(clamp01((clientY - rect.top) / rect.height)),
+    };
+  }
+  function startOriginDrag(e: PointerEvent) {
+    if (!originInteractive) return;
+    const point = originPoint(e.clientX, e.clientY);
+    if (!point) return;
+    e.preventDefault();
+    e.stopPropagation();
+    originDrag.current = {
+      pointerId: e.pointerId,
+      assetId: data.asset_id,
+      dx: point.x - origin.x,
+      dy: point.y - origin.y,
+    };
+    draftOrigin.current = { ...origin };
+    setDragOrigin({ ...origin });
+    try {
+      spriteSpace.current?.setPointerCapture(e.pointerId);
+    } catch {
+      // Pointer capture is best-effort; moves are still tracked on the space.
+    }
+  }
+  function moveOriginDrag(e: PointerEvent) {
+    const drag = originDrag.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const raw = originPoint(e.clientX, e.clientY);
+    if (!raw) return;
+    const point = {
+      x: round3(clamp01(raw.x - drag.dx)),
+      y: round3(clamp01(raw.y - drag.dy)),
+    };
+    draftOrigin.current = point;
+    setDragOrigin(point);
+  }
+  function endOriginDrag(e: PointerEvent) {
+    const drag = originDrag.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    originDrag.current = null;
+    const done = draftOrigin.current;
+    draftOrigin.current = null;
+    setDragOrigin(null);
+    if (
+      done &&
+      drag.assetId === data.asset_id &&
+      (done.x !== origin.x || done.y !== origin.y)
+    ) {
+      onOriginChange(done);
+    }
+  }
+  function moveOriginKeyboard(e: KeyboardEvent) {
+    if (!originInteractive) return;
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key))
+      return;
+    e.preventDefault();
+    const step = e.shiftKey ? 0.05 : 0.01;
+    const dx = e.key === "ArrowRight" ? step : e.key === "ArrowLeft" ? -step : 0;
+    const dy = e.key === "ArrowDown" ? step : e.key === "ArrowUp" ? -step : 0;
+    const next = {
+      x: round3(clamp01(origin.x + dx)),
+      y: round3(clamp01(origin.y + dy)),
+    };
+    if (next.x !== origin.x || next.y !== origin.y) onOriginChange(next);
+  }
   useEffect(() => {
     if (!playing || compare || !timeline || !enabled.includes(motion)) {
       if (sprite.current) {
@@ -176,8 +267,12 @@ export default function AssetCanvas({
           </div>
         ) : (
           <div
+            ref={spriteSpace}
             className="sprite-space"
             style={{ width: `${Math.min(96, zoom * 0.8)}%` }}
+            onPointerMove={moveOriginDrag}
+            onPointerUp={endOriginDrag}
+            onPointerCancel={endOriginDrag}
           >
             <img
               ref={sprite}
@@ -187,7 +282,7 @@ export default function AssetCanvas({
               width="512"
               height="512"
               style={{
-                transformOrigin: `${origin.x * 100}% ${origin.y * 100}%`,
+                transformOrigin: `${liveOrigin.x * 100}% ${liveOrigin.y * 100}%`,
               }}
             />
             {bounds && (
@@ -207,14 +302,23 @@ export default function AssetCanvas({
             )}
             {anchor && (
               <div
-                className="origin-cross"
+                className="origin-cross origin-draggable"
                 style={{
-                  left: `${origin.x * 100}%`,
-                  top: `${origin.y * 100}%`,
+                  left: `${liveOrigin.x * 100}%`,
+                  top: `${liveOrigin.y * 100}%`,
                 }}
+                role="group"
+                aria-label={`Origin point: x ${liveOrigin.x}, y ${liveOrigin.y}. Drag to move, or use arrow keys (Shift for bigger steps).`}
+                tabIndex={disabled ? -1 : 0}
+                onPointerDown={startOriginDrag}
+                onKeyDown={moveOriginKeyboard}
               >
                 <Crosshair size={24} />
-                <span>Origin</span>
+                <span>
+                  {dragOrigin
+                    ? `${liveOrigin.x.toFixed(2)}, ${liveOrigin.y.toFixed(2)}`
+                    : "Origin"}
+                </span>
               </div>
             )}
           </div>

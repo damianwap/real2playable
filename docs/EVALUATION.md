@@ -47,6 +47,7 @@ Compiler awal membake atlas pada t=0, 1/4, 2/4, 3/4 durasi, sedangkan importer m
 ## Belum dibuktikan
 
 - Generalisasi kualitas SAM / Muse Image / Muse Spark pada foto nyata yang beragam, izin model akun lain, rate limit dan kualitas segmentasi pada setiap foto pengguna. Ilustrasi kontrol dan satu kasus alpha artwork aktual telah diperiksa; detail terpisah dan tepian masih memerlukan review.
+- Saran label vision dan alur auto-detect pada model live (kontrak endpoint dan parsing diuji tanpa key; keberhasilan live belum dibuktikan).
 - Exit gate PRD tiga foto baru → SAM → Muse Image → Spark → transparent sprite → Phaser.
 - Human likeness review, perbandingan workflow manual vs AI chat, time saved, latency SLA, biaya model atau style consistency.
 - Repo publik, commit history tim, video demo, submission / eligibility event.
